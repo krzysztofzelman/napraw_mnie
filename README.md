@@ -222,6 +222,7 @@ rezerwuj/
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
 | GET | `/health` | Healthcheck (Docker, monitorowanie) |
+| GET | `/favicon.ico` | Favicon (inline SVG — kalendarz) |
 | GET | `/` | Landing page |
 
 ### Publiczne
@@ -231,17 +232,24 @@ rezerwuj/
 | GET | `/api/{slug}/slots?date=YYYY-MM-DD` | Dostępne sloty |
 | POST | `/api/{slug}/book` | Tworzenie rezerwacji |
 | GET | `/api/{slug}/info` | Info o usługodawcy |
+| GET | `/api/{slug}/payment-success/{booking_id}` | Potwierdzenie płatności (przekierowanie z Stripe) |
+| GET | `/api/{slug}/payment-cancel/{booking_id}` | Anulowanie płatności (przekierowanie z Stripe) |
 
 ### Dashboard (wymaga logowania)
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
 | GET | `/dashboard` | Strona główna |
 | GET | `/dashboard/rezerwacje` | Lista rezerwacji |
+| POST | `/dashboard/rezerwacje/{booking_id}/anuluj` | Anulowanie rezerwacji |
+| POST | `/dashboard/rezerwacje/{booking_id}/zakoncz` | Oznaczenie rezerwacji jako zrealizowanej |
 | GET | `/dashboard/ustawienia` | Ustawienia |
 | POST | `/dashboard/ustawienia` | Zapis ustawień |
 | POST | `/dashboard/godziny-pracy` | Godziny pracy |
 | POST | `/dashboard/blokuj` | Blokada terminu |
+| POST | `/dashboard/odblokuj/{block_id}` | Usunięcie blokady terminu |
 | GET | `/dashboard/platnosci` | Subskrypcja/płatności |
+| POST | `/dashboard/subskrypcja/utworz` | Utworzenie sesji Stripe Checkout |
+| POST | `/dashboard/subskrypcja/anuluj` | Anulowanie subskrypcji |
 | GET | `/dashboard/podglad` | Podgląd linku |
 
 ### Autentykacja
@@ -257,7 +265,8 @@ rezerwuj/
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
 | GET | `/admin` | Panel admina |
-| POST | `/admin/users/{id}/toggle-active` | Aktywacja/dezaktywacja konta |
+| POST | `/admin/users/{user_id}/toggle-active` | Aktywacja/dezaktywacja konta |
+| POST | `/admin/users/{user_id}/activate-subscription` | Przedłużenie subskrypcji o 30 dni |
 
 ### Webhook
 | Metoda | Ścieżka | Opis |
