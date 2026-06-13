@@ -25,5 +25,6 @@ nginx.conf
 nginx-init.conf
 docker-compose.yml
 test_app.py
-scripts/
+scripts/deploy.sh
+scripts/vps-init.sh
 migrations/
