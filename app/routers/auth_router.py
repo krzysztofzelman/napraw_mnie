@@ -10,7 +10,7 @@ from app.database import get_db
 from app.models import Provider
 from app.schemas import RegisterRequest, LoginRequest
 from app.auth import hash_password, verify_password, create_access_token
-from app.config import TRIAL_DAYS
+from app.config import TRIAL_DAYS, SITE_URL
 
 logger = logging.getLogger("rezerwuj.auth")
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -19,13 +19,14 @@ templates = Jinja2Templates(directory="app/templates")
 
 def _set_auth_cookie(response: RedirectResponse, token: str) -> None:
     """Ustawia ciasteczko z tokenem JWT."""
+    is_https = SITE_URL.startswith("https")
     response.set_cookie(
         key="access_token",
         value=f"Bearer {token}",
         httponly=True,
         max_age=72 * 3600,  # 72h
         samesite="lax",
-        secure=False,  # True w produkcji z HTTPS
+        secure=is_https,
     )
 
 

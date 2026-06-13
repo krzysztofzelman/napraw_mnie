@@ -193,12 +193,11 @@ async def general_error_handler(request: Request, exc):
     )
 
 
-# === Endpoint startowy ===
+# === Landing page ===
 @app.get("/")
-def home(request: Request):
-    """Strona główna — przekierowanie do logowania lub info."""
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/auth/logowanie", status_code=302)
+def landing_page(request: Request):
+    """Strona główna — landing page z informacją o produkcie."""
+    return templates.TemplateResponse("public/landing.html", {"request": request})
 
 
 if __name__ == "__main__":
