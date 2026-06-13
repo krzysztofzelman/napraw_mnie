@@ -8,10 +8,11 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import rate_limit_strict
-from app.models import Provider
+from app.models import Provider, PasswordResetToken
 from app.schemas import RegisterRequest, LoginRequest
 from app.auth import hash_password, verify_password, create_access_token
 from app.config import TRIAL_DAYS, SITE_URL
+from app.email_mock import send_password_reset_email
 
 logger = logging.getLogger("rezerwuj.auth")
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -190,6 +191,180 @@ async def login(
     response = RedirectResponse(url="/dashboard", status_code=302)
     _set_auth_cookie(response, token)
     return response
+
+
+# ===== Resetowanie hasła =====
+
+@router.get("/reset-hasla")
+def password_reset_request_page(request: Request):
+    """Strona z formularzem do żądania resetu hasła."""
+    return templates.TemplateResponse(
+        "dashboard/reset_password_request.html",
+        _auth_context(request),
+    )
+
+
+@router.post("/reset-hasla")
+async def password_reset_request(
+    request: Request,
+    _rl: None = Depends(rate_limit_strict),
+    db: Session = Depends(get_db),
+):
+    """Wysyła e-mail z linkiem do resetu hasła."""
+    form = await request.form()
+    email = form.get("email", "").strip().lower()
+
+    if not email:
+        return templates.TemplateResponse(
+            "dashboard/reset_password_request.html",
+            {
+                "request": request,
+                "error": "Podaj adres e-mail",
+                "csrf_token": getattr(request.state, "csrf_token", ""),
+            },
+        )
+
+    provider = db.query(Provider).filter(Provider.email == email).first()
+
+    # Zawsze zwracaj sukces, nawet jeśli e-mail nie istnieje (bezpieczeństwo)
+    if provider:
+        import secrets
+        from datetime import timedelta
+
+        token = secrets.token_urlsafe(48)
+        expires_at = datetime.datetime.now(datetime.timezone.utc) + timedelta(hours=1)
+
+        reset_token = PasswordResetToken(
+            provider_id=provider.id,
+            token=token,
+            expires_at=expires_at,
+        )
+        db.add(reset_token)
+        db.commit()
+
+        site_url = SITE_URL.rstrip("/")
+        reset_url = f"{site_url}/auth/reset-hasla/{token}"
+        send_password_reset_email(provider.email, reset_url)
+
+    return templates.TemplateResponse(
+        "dashboard/reset_password_request.html",
+        {
+            "request": request,
+            "success": "Jeśli konto z tym adresem e-mail istnieje, wysłaliśmy link do resetu hasła.",
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+        },
+    )
+
+
+@router.get("/reset-hasla/{token}")
+def password_reset_form(request: Request, token: str, db: Session = Depends(get_db)):
+    """Strona z formularzem do ustawienia nowego hasła."""
+    reset_token = (
+        db.query(PasswordResetToken)
+        .filter(
+            PasswordResetToken.token == token,
+            PasswordResetToken.used == False,  # noqa: E712
+            PasswordResetToken.expires_at > datetime.datetime.now(datetime.timezone.utc),
+        )
+        .first()
+    )
+
+    if not reset_token:
+        return templates.TemplateResponse(
+            "dashboard/reset_password_request.html",
+            {
+                "request": request,
+                "error": "Link do resetu hasła jest nieprawidłowy lub wygasł. Poproś o nowy link.",
+                "csrf_token": getattr(request.state, "csrf_token", ""),
+            },
+        )
+
+    return templates.TemplateResponse(
+        "dashboard/reset_password_form.html",
+        {
+            "request": request,
+            "token": token,
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+        },
+    )
+
+
+@router.post("/reset-hasla/{token}")
+async def password_reset_confirm(
+    request: Request,
+    token: str,
+    db: Session = Depends(get_db),
+):
+    """Przetwarza formularz ustawienia nowego hasła."""
+    reset_token = (
+        db.query(PasswordResetToken)
+        .filter(
+            PasswordResetToken.token == token,
+            PasswordResetToken.used == False,  # noqa: E712
+            PasswordResetToken.expires_at > datetime.datetime.now(datetime.timezone.utc),
+        )
+        .first()
+    )
+
+    if not reset_token:
+        return templates.TemplateResponse(
+            "dashboard/reset_password_request.html",
+            {
+                "request": request,
+                "error": "Link do resetu hasła jest nieprawidłowy lub wygasł.",
+                "csrf_token": getattr(request.state, "csrf_token", ""),
+            },
+        )
+
+    form = await request.form()
+    password = form.get("password", "")
+    confirm = form.get("confirm_password", "")
+
+    if len(password) < 8:
+        return templates.TemplateResponse(
+            "dashboard/reset_password_form.html",
+            {
+                "request": request,
+                "token": token,
+                "error": "Hasło musi mieć co najmniej 8 znaków.",
+                "csrf_token": getattr(request.state, "csrf_token", ""),
+            },
+        )
+
+    if password != confirm:
+        return templates.TemplateResponse(
+            "dashboard/reset_password_form.html",
+            {
+                "request": request,
+                "token": token,
+                "error": "Hasła nie są zgodne.",
+                "csrf_token": getattr(request.state, "csrf_token", ""),
+            },
+        )
+
+    provider = db.query(Provider).filter(Provider.id == reset_token.provider_id).first()
+    if not provider:
+        return templates.TemplateResponse(
+            "dashboard/reset_password_request.html",
+            {
+                "request": request,
+                "error": "Użytkownik nie istnieje.",
+                "csrf_token": getattr(request.state, "csrf_token", ""),
+            },
+        )
+
+    provider.password_hash = hash_password(password)
+    reset_token.used = True
+    db.commit()
+
+    return templates.TemplateResponse(
+        "dashboard/login.html",
+        {
+            "request": request,
+            "success": "Hasło zostało zmienione. Możesz się zalogować nowym hasłem.",
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+        },
+    )
 
 
 @router.get("/wyloguj")

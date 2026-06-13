@@ -231,6 +231,12 @@
             client_email: document.getElementById('client_email').value.trim(),
         };
 
+        // Dodaj token reCAPTCHA jeśli istnieje
+        const recaptchaResp = document.getElementById('g-recaptcha-response');
+        if (recaptchaResp && recaptchaResp.value) {
+            formData.g_recaptcha_response = recaptchaResp.value;
+        }
+
         try {
             const resp = await fetch(`/api/${slug}/book`, {
                 method: 'POST',

@@ -148,3 +148,16 @@ class BlockedSlot(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     provider = relationship("Provider", back_populates="blocked_slots")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
+    token = Column(String(128), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Boolean, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    provider = relationship("Provider")

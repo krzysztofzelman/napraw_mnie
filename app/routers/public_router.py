@@ -9,12 +9,13 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import rate_limit_default, rate_limit_booking
-from app.models import Provider, Booking
+from app.models import Provider, Booking, Service
 from app.schemas import BookRequest
 from app.utils import get_available_slots
 from app.sms_mock import send_booking_confirmation
+from app.email_mock import send_booking_confirmation_email
 from app.payments import create_deposit_checkout
-from app.config import SITE_URL
+from app.config import SITE_URL, RECAPTCHA_SITE_KEY, RECAPTCHA_SECRET_KEY
 
 logger = logging.getLogger("rezerwuj.public")
 router = APIRouter(tags=["public"])
@@ -65,6 +66,7 @@ def public_booking_page(slug: str, request: Request, db: Session = Depends(get_d
             "deposit_amount_pln": (provider.deposit_amount or 0) / 100,
             "stripe_key": "",  # Frontend nie potrzebuje — używamy Checkout Session
             "site_url": SITE_URL,
+            "recaptcha_site_key": RECAPTCHA_SITE_KEY,
         },
     )
 
@@ -73,13 +75,25 @@ def public_booking_page(slug: str, request: Request, db: Session = Depends(get_d
 def get_slots(
     slug: str,
     date: str,
+    service_id: int = 0,
     _rl: None = Depends(rate_limit_default),
     db: Session = Depends(get_db),
 ):
-    """Zwraca dostępne sloty dla podanej daty (AJAX)."""
+    """Zwraca dostępne sloty dla podanej daty (AJAX). Opcjonalnie `service_id` dla czasu trwania usługi."""
     provider = db.query(Provider).filter(Provider.slug == slug).first()
     if not provider or not provider.can_accept_bookings:
         return JSONResponse(content={"slots": [], "error": "Brak dostępnych terminów"})
+
+    # Określ czas trwania: z usługi lub domyślny providera
+    duration = provider.service_duration
+    if service_id:
+        svc = (
+            db.query(Service)
+            .filter(Service.id == service_id, Service.provider_id == provider.id, Service.is_active == True)  # noqa: E712
+            .first()
+        )
+        if svc:
+            duration = svc.duration
 
     try:
         target_date = datetime.date.fromisoformat(date)
@@ -98,8 +112,41 @@ def get_slots(
     if target_date > max_date:
         return JSONResponse(content={"slots": []})
 
-    slots = get_available_slots(db, provider, target_date)
+    slots = get_available_slots(db, provider, target_date, duration=duration)
     return JSONResponse(content={"slots": slots})
+
+
+@router.get("/api/{slug}/services")
+def provider_services(
+    slug: str,
+    _rl: None = Depends(rate_limit_default),
+    db: Session = Depends(get_db),
+):
+    """Zwraca aktywne usługi dla usługodawcy (AJAX)."""
+    provider = db.query(Provider).filter(Provider.slug == slug).first()
+    if not provider:
+        return JSONResponse(content={"services": []})
+
+    services = (
+        db.query(Service)
+        .filter(Service.provider_id == provider.id, Service.is_active == True)  # noqa: E712
+        .order_by(Service.name)
+        .all()
+    )
+
+    return JSONResponse(
+        content={
+            "services": [
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "duration": s.duration,
+                    "price_pln": s.price / 100 if s.price else 0,
+                }
+                for s in services
+            ]
+        }
+    )
 
 
 @router.post("/api/{slug}/book")
@@ -118,6 +165,32 @@ async def create_booking(
         )
 
     form = await request.json()
+
+    # Weryfikacja reCAPTCHA
+    if RECAPTCHA_SECRET_KEY:
+        recaptcha_token = form.get("g_recaptcha_response", "")
+        if not recaptcha_token:
+            return JSONResponse(
+                content={"success": False, "error": "Weryfikacja bezpieczeństwa nieudana. Odśwież stronę i spróbuj ponownie."},
+                status_code=400,
+            )
+        import httpx
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://www.google.com/recaptcha/api/siteverify",
+                data={
+                    "secret": RECAPTCHA_SECRET_KEY,
+                    "response": recaptcha_token,
+                },
+                timeout=10,
+            )
+            recaptcha_result = resp.json()
+        if not recaptcha_result.get("success"):
+            logger.warning("reCAPTCHA nieudana: %s", recaptcha_result.get("error-codes", []))
+            return JSONResponse(
+                content={"success": False, "error": "Weryfikacja bezpieczeństwa nieudana. Spróbuj ponownie."},
+                status_code=400,
+            )
 
     try:
         book_data = BookRequest(
@@ -171,7 +244,7 @@ async def create_booking(
     db.commit()
     db.refresh(booking)
 
-    # Wyślij SMS potwierdzający (asynchronicznie — w tle)
+    # Wyślij potwierdzenia (asynchronicznie — w tle)
     date_str = booking_date.strftime("%d.%m.%Y")
     time_str = booking_time.strftime("%H:%M")
     send_booking_confirmation(
@@ -180,6 +253,15 @@ async def create_booking(
         date_str,
         time_str,
     )
+    if booking.client_email:
+        send_booking_confirmation_email(
+            booking.client_email,
+            booking.client_name,
+            provider.name,
+            date_str,
+            time_str,
+            provider.company_name,
+        )
 
     # Jeśli wymagana zaliczka — utwórz Stripe Checkout
     payment_url = None

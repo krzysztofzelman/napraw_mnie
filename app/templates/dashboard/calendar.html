@@ -1,0 +1,90 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block title %}Kalendarz — {{ provider.name }}{% endblock %}
+{% block dashboard_content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0"><i class="bi bi-calendar3"></i> Kalendarz rezerwacji</h1>
+    <small class="text-muted">
+        <span class="badge bg-primary rounded-pill">&nbsp;</span> Potwierdzone
+        <span class="badge bg-success rounded-pill ms-2">&nbsp;</span> Zrealizowane
+        <span class="badge bg-secondary rounded-pill ms-2">&nbsp;</span> Anulowane
+    </small>
+</div>
+
+<div id="calendar"></div>
+
+<style>
+#calendar {
+    max-width: 1100px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+}
+.fc-event {
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+.fc-daygrid-event {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    if (!calendarEl) return;
+
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        plugins: ['dayGrid'],
+        initialView: 'dayGridMonth',
+        locale: 'pl',
+        firstDay: 1,
+        height: 'auto',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,dayGridWeek'
+        },
+        buttonText: {
+            today: 'Dziś',
+            month: 'Miesiąc',
+            week: 'Tydzień'
+        },
+        events: '/api/dashboard/calendar',
+        eventTimeFormat: {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        },
+        eventClick: function(info) {
+            var props = info.event.extendedProps;
+            if (props.type === 'booking') {
+                var statusMap = {
+                    'confirmed': 'Potwierdzona',
+                    'completed': 'Zrealizowana',
+                    'cancelled': 'Anulowana'
+                };
+                var paidInfo = props.paid ? ' (Opłacona)' : '';
+                alert(
+                    'Rezerwacja\n' +
+                    'Klient: ' + info.event.title + '\n' +
+                    'Telefon: ' + props.phone + '\n' +
+                    'Email: ' + (props.email || '—') + '\n' +
+                    'Czas: ' + props.duration + ' min\n' +
+                    'Status: ' + (statusMap[props.status] || props.status) + paidInfo
+                );
+            } else if (props.type === 'blocked') {
+                alert('Blokada: ' + (props.reason || 'Brak opisu'));
+            }
+        }
+    });
+
+    calendar.render();
+});
+</script>
+{% endblock %}

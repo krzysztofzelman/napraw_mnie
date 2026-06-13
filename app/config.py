@@ -22,6 +22,21 @@ SMS_API_KEY = os.getenv("SMS_API_KEY", "")
 SMS_SENDER = os.getenv("SMS_SENDER", "Rezerwuj")
 SMS_MOCK = os.getenv("SMS_MOCK", "true").lower() == "true"
 
+# === E-mail (SMTP) ===
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", "Rezerwuj <noreply@rezerwuj.kzelman.pl>")
+EMAIL_MOCK = os.getenv("EMAIL_MOCK", "true").lower() == "true"
+
+# === reCAPTCHA ===
+RECAPTCHA_SITE_KEY = os.getenv("RECAPTCHA_SITE_KEY", "")
+RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY", "")
+
+# === Redis ===
+REDIS_URL = os.getenv("REDIS_URL", "")
+
 # === Ogólne ===
 TRIAL_DAYS = int(os.getenv("TRIAL_DAYS", "14"))
 MAX_BOOKING_DAYS_AHEAD = int(os.getenv("MAX_BOOKING_DAYS_AHEAD", "60"))

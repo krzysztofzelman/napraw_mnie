@@ -1,7 +1,11 @@
 {% extends "dashboard/base_dashboard.html" %}
 {% block title %}Rezerwacje — {{ provider.name }}{% endblock %}
 {% block dashboard_content %}
-<h1 class="h4 mb-4">Wszystkie rezerwacje</h1>
+<h1 class="h4 mb-4">Wszystkie rezerwacje
+    <a href="/dashboard/rezerwacje/eksport" class="btn btn-outline-success btn-sm ms-2">
+        <i class="bi bi-download"></i> Eksport CSV
+    </a>
+</h1>
 
 {% if bookings %}
     <div class="table-responsive">

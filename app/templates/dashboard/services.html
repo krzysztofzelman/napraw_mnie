@@ -1,0 +1,111 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block title %}Usługi — {{ provider.name }}{% endblock %}
+{% block dashboard_content %}
+<h1 class="h4 mb-4">Usługi</h1>
+
+<div class="row g-4">
+    <!-- Formularz dodawania -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-plus-circle"></i> Dodaj usługę</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="/dashboard/uslugi">
+                    <div class="mb-3">
+                        <label class="form-label small">Nazwa usługi *</label>
+                        <input type="text" class="form-control" name="name" required minlength="2"
+                               placeholder="Strzyżenie męskie">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Czas trwania (min) *</label>
+                        <select class="form-select" name="duration" required>
+                            {% for opt in [15, 30, 45, 60, 75, 90, 105, 120, 150, 180] %}
+                                <option value="{{ opt }}">{{ opt }} min</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Cena (zł) <span class="text-muted">(opcjonalnie)</span></label>
+                        <input type="number" class="form-control" name="price" step="0.01" min="0"
+                               placeholder="0.00">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-lg"></i> Dodaj usługę
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista usług -->
+    <div class="col-lg-8">
+        {% if services %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nazwa</th>
+                            <th>Czas</th>
+                            <th>Cena</th>
+                            <th>Status</th>
+                            <th>Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in services %}
+                            <tr class="{% if not s.is_active %}table-secondary text-muted{% endif %}">
+                                <td>
+                                    <form method="POST" action="/dashboard/uslugi/{{ s.id }}/edytuj"
+                                          class="d-flex align-items-center gap-2">
+                                        <input type="text" class="form-control form-control-sm" name="name"
+                                               value="{{ s.name }}" style="min-width:140px;">
+                                </td>
+                                <td>
+                                        <select class="form-select form-select-sm" name="duration">
+                                            {% for opt in [15, 30, 45, 60, 75, 90, 105, 120, 150, 180] %}
+                                                <option value="{{ opt }}" {% if s.duration == opt %}selected{% endif %}>{{ opt }} min</option>
+                                            {% endfor %}
+                                        </select>
+                                </td>
+                                <td>
+                                        <input type="number" class="form-control form-control-sm" name="price"
+                                               step="0.01" min="0" value="{{ '%.2f'|format(s.price / 100) }}"
+                                               style="width:100px;">
+                                </td>
+                                <td>
+                                    {% if s.is_active %}
+                                        <span class="badge bg-success">Aktywna</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Nieaktywna</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                        <button type="submit" class="btn btn-sm btn-outline-primary" title="Zapisz">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    </form>
+                                    {% if s.is_active %}
+                                        <form method="POST" action="/dashboard/uslugi/{{ s.id }}/usun" class="d-inline"
+                                              onsubmit="return confirm('Dezaktywować usługę „{{ s.name }}”?')">
+                                            <button class="btn btn-sm btn-outline-danger" title="Dezaktywuj">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-list-check display-4"></i>
+                <p class="mt-2">Brak zdefiniowanych usług.</p>
+                <p class="small">Dodaj usługi, aby klienci mogli wybrać typ wizyty podczas rezerwacji.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

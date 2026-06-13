@@ -11,13 +11,16 @@ from app.models import Provider, WorkingHour, Booking, BlockedSlot
 
 
 def get_available_slots(
-    db: Session, provider: Provider, target_date: datetime.date
+    db: Session, provider: Provider, target_date: datetime.date, duration: int | None = None
 ) -> List[str]:
     """
     Zwraca listę dostępnych godzin (HH:MM) dla danego usługodawcy i daty.
     Uwzględnia godziny pracy, przerwę, istniejące rezerwacje i zablokowane sloty.
+    `duration` — opcjonalny czas trwania w minutach (np. z wybranej usługi).
     """
-    if not provider.service_duration:
+    if duration is None:
+        duration = provider.service_duration
+    if not duration:
         return []
 
     day_of_week = target_date.weekday()  # 0=Monday
@@ -40,8 +43,7 @@ def get_available_slots(
     break_start = wh.break_start
     break_end = wh.break_end
 
-    # 2. Generuj wszystkie potencjalne sloty co `service_duration` minut
-    duration = provider.service_duration
+    # 2. Generuj wszystkie potencjalne sloty co `duration` minut
     all_slots = _generate_time_slots(work_start, work_end, duration)
 
     # 3. Odfiltruj sloty przypadające na przerwę

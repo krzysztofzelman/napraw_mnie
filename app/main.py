@@ -18,6 +18,8 @@ from app.auth import decode_access_token
 from app.payments import handle_stripe_webhook, process_subscription_event, MOCK_MODE
 from app.csrf import verify_csrf
 from app.routers import auth_router, public_router, dashboard_router, admin_router
+from app.scheduler import start_scheduler, stop_scheduler
+from app.metrics import MetricsMiddleware, metrics_endpoint
 
 # === Logowanie ===
 logging.basicConfig(
@@ -78,6 +80,7 @@ async def lifespan(app: FastAPI):
     """Uruchamiane przy starcie i zamknięciu aplikacji."""
     logger.info(f"🚀 Rezerwuj SaaS uruchomiony na {SITE_URL}")
     logger.info(f"📧 Tryb SMS: {'MOCK' if __import__('app.config', fromlist=['']).SMS_MOCK else 'PRODUKCYJNY'}")
+    logger.info(f"📧 Tryb E-mail: {'MOCK' if __import__('app.config', fromlist=['']).EMAIL_MOCK else 'PRODUKCYJNY (SMTP)'}")
 
     # Sprawdź konfigurację Stripe
     stripe_key = __import__('app.config', fromlist=['']).STRIPE_SECRET_KEY
@@ -95,8 +98,13 @@ async def lifespan(app: FastAPI):
     # Seed konta admina
     _seed_admin()
 
+    # Uruchom harmonogram zadań
+    start_scheduler()
+
     yield
     logger.info("👋 Rezerwuj SaaS zatrzymany")
+
+    stop_scheduler()
 
 
 def _seed_admin():
@@ -148,6 +156,12 @@ def health_check():
     return {"status": "ok"}
 
 
+@app.get("/metrics")
+def prometheus_metrics():
+    """Endpoint metryk Prometheus."""
+    return metrics_endpoint()
+
+
 @app.get("/favicon.ico")
 async def favicon():
     """Minimalny favicon — kalendarz."""
@@ -186,6 +200,35 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Content-Type", "X-CSRF-Token"],
 )
+
+# === Middleware metryk ===
+app.add_middleware(MetricsMiddleware)
+
+
+# === Middleware: Nagłówki bezpieczeństwa ===
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    """Dodaje nagłówki bezpieczeństwa do każdej odpowiedzi."""
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "0"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # HSTS tylko na HTTPS
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # CSP — zezwól na Bootstrap CDN, Flatpickr CDN i własne skrypty/style
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.google.com https://www.gstatic.com; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+        "img-src 'self' data: https:; "
+        "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; "
+        "frame-src https://www.google.com; "
+        "connect-src 'self'; "
+        "form-action 'self'"
+    )
+    return response
 
 
 # === Middleware: Auth przez cookie dla dashboardu ===

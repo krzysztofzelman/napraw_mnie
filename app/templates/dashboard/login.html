@@ -13,6 +13,9 @@
             {% if error %}
                 <div class="alert alert-danger py-2 small">{{ error }}</div>
             {% endif %}
+            {% if success %}
+                <div class="alert alert-success py-2 small">{{ success }}</div>
+            {% endif %}
 
             <form method="POST" action="/auth/logowanie" novalidate>
                 <div class="mb-3">
@@ -24,6 +27,9 @@
                     <label for="password" class="form-label small">Hasło</label>
                     <input type="password" class="form-control" id="password" name="password" required
                            placeholder="••••••••">
+                    <div class="mt-1 text-end">
+                        <a href="/auth/reset-hasla" class="small text-decoration-none">Nie pamiętasz hasła?</a>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary w-100">Zaloguj się</button>
             </form>

@@ -1,7 +1,7 @@
 import datetime
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -171,6 +171,55 @@ def complete_booking(booking_id: int, request: Request, db: Session = Depends(ge
     db.commit()
 
     return RedirectResponse(url="/dashboard/rezerwacje", status_code=302)
+
+
+@router.get("/dashboard/rezerwacje/eksport")
+def bookings_export_csv(request: Request, db: Session = Depends(get_db)):
+    """Eksport wszystkich rezerwacji do CSV."""
+    provider = _get_provider(request)
+
+    bookings = (
+        db.query(Booking)
+        .filter(Booking.provider_id == provider.id)
+        .order_by(Booking.booking_date.desc(), Booking.booking_time.desc())
+        .all()
+    )
+
+    status_map = {
+        "confirmed": "Potwierdzona",
+        "completed": "Zakończona",
+        "cancelled": "Anulowana",
+    }
+
+    # Buduj CSV ręcznie (zgodnie z projektowym wzorcem prostoty)
+    lines = [
+        "ID;Data;Godzina;Czas(min);Klient;Nazwisko;Telefon;Email;Status;Opłacone;Utworzono"
+    ]
+    for b in bookings:
+        lines.append(
+            ";".join([
+                str(b.id),
+                b.booking_date.strftime("%d.%m.%Y") if b.booking_date else "",
+                b.booking_time.strftime("%H:%M") if b.booking_time else "",
+                str(b.duration),
+                b.client_name,
+                b.client_surname,
+                b.client_phone,
+                b.client_email or "",
+                status_map.get(b.status, b.status),
+                "Tak" if b.paid else "Nie",
+                b.created_at.strftime("%d.%m.%Y %H:%M") if b.created_at else "",
+            ])
+        )
+
+    csv_content = "\r\n".join(lines)
+
+    filename = f"rezerwacje_{datetime.date.today().isoformat()}.csv"
+    return Response(
+        content=csv_content.encode("utf-8-sig"),  # BOM dla polskich znaków w Excelu
+        media_type="text/csv; charset=utf-8-sig",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ===== Ustawienia =====
@@ -470,3 +519,210 @@ def public_preview(request: Request):
             "public_url": public_url,
         },
     )
+
+
+# ===== Kalendarz =====
+
+@router.get("/dashboard/kalendarz")
+def calendar_view(request: Request):
+    """Widok kalendarza z FullCalendar."""
+    return templates.TemplateResponse(
+        "dashboard/calendar.html",
+        _get_dashboard_context(request),
+    )
+
+
+@router.get("/api/dashboard/calendar")
+def calendar_events(
+    request: Request,
+    start: str = "",
+    end: str = "",
+    db: Session = Depends(get_db),
+):
+    """Zwraca rezerwacje i blokady jako zdarzenia FullCalendar (JSON)."""
+    provider = _get_provider(request)
+
+    events = []
+    start_date = None
+    end_date = None
+
+    # Rezerwacje
+    bookings_query = db.query(Booking).filter(
+        Booking.provider_id == provider.id,
+    )
+
+    if start:
+        try:
+            start_date = datetime.date.fromisoformat(start[:10])
+            bookings_query = bookings_query.filter(Booking.booking_date >= start_date)
+        except ValueError:
+            pass
+
+    if end:
+        try:
+            end_date = datetime.date.fromisoformat(end[:10])
+            bookings_query = bookings_query.filter(Booking.booking_date <= end_date)
+        except ValueError:
+            pass
+
+    color_map = {
+        "confirmed": "#0d6efd",
+        "completed": "#198754",
+        "cancelled": "#6c757d",
+    }
+
+    for b in bookings_query.order_by(Booking.booking_date, Booking.booking_time).all():
+        start_dt = datetime.datetime.combine(b.booking_date, b.booking_time)
+        end_dt = start_dt + datetime.timedelta(minutes=b.duration)
+
+        events.append({
+            "id": f"booking-{b.id}",
+            "title": f"{b.client_name} {b.client_surname}",
+            "start": start_dt.isoformat(),
+            "end": end_dt.isoformat(),
+            "color": color_map.get(b.status, "#0d6efd"),
+            "extendedProps": {
+                "type": "booking",
+                "status": b.status,
+                "phone": b.client_phone,
+                "email": b.client_email or "",
+                "duration": b.duration,
+                "paid": b.paid,
+            },
+        })
+
+    # Blokady
+    blocked_query = db.query(BlockedSlot).filter(
+        BlockedSlot.provider_id == provider.id,
+    )
+
+    if start:
+        try:
+            blocked_query = blocked_query.filter(BlockedSlot.block_date >= start_date)
+        except ValueError:
+            pass
+
+    if end:
+        try:
+            blocked_query = blocked_query.filter(BlockedSlot.block_date <= end_date)
+        except ValueError:
+            pass
+
+    for blk in blocked_query.order_by(BlockedSlot.block_date, BlockedSlot.start_time).all():
+        start_dt = datetime.datetime.combine(blk.block_date, blk.start_time)
+        end_dt = datetime.datetime.combine(blk.block_date, blk.end_time)
+
+        events.append({
+            "id": f"blocked-{blk.id}",
+            "title": blk.reason or "Zablokowany",
+            "start": start_dt.isoformat(),
+            "end": end_dt.isoformat(),
+            "color": "#dc3545",
+            "display": "background",
+            "extendedProps": {
+                "type": "blocked",
+                "reason": blk.reason or "",
+            },
+        })
+
+    return JSONResponse(content={"events": events})
+
+
+# ===== Usługi (CRUD) =====
+
+@router.get("/dashboard/uslugi")
+def services_list(request: Request, db: Session = Depends(get_db)):
+    """Lista usług z formularzem dodawania."""
+    provider = _get_provider(request)
+
+    services = (
+        db.query(Service)
+        .filter(Service.provider_id == provider.id)
+        .order_by(Service.is_active.desc(), Service.name)
+        .all()
+    )
+
+    return templates.TemplateResponse(
+        "dashboard/services.html",
+        {
+            **_get_dashboard_context(request),
+            "services": services,
+        },
+    )
+
+
+@router.post("/dashboard/uslugi")
+async def services_create(request: Request, db: Session = Depends(get_db)):
+    """Tworzy nową usługę."""
+    provider = _get_provider(request)
+    form = await request.form()
+
+    from app.schemas import ServiceCreate
+    try:
+        service_data = ServiceCreate(
+            name=form.get("name", ""),
+            duration=int(form.get("duration", 60)),
+            price=int(float(form.get("price", 0)) * 100),  # zł → grosze
+        )
+    except (ValueError, TypeError) as e:
+        return templates.TemplateResponse(
+            "dashboard/services.html",
+            {
+                **_get_dashboard_context(request),
+                "error": f"Nieprawidłowe dane: {e}",
+                "services": db.query(Service).filter(Service.provider_id == provider.id).all(),
+            },
+        )
+
+    service = Service(
+        provider_id=provider.id,
+        name=service_data.name,
+        duration=service_data.duration,
+        price=service_data.price,
+    )
+    db.add(service)
+    db.commit()
+
+    return RedirectResponse(url="/dashboard/uslugi", status_code=302)
+
+
+@router.post("/dashboard/uslugi/{service_id}/edytuj")
+async def services_update(service_id: int, request: Request, db: Session = Depends(get_db)):
+    """Edycja usługi."""
+    provider = _get_provider(request)
+    service = (
+        db.query(Service)
+        .filter(Service.id == service_id, Service.provider_id == provider.id)
+        .first()
+    )
+    if not service:
+        raise HTTPException(status_code=404, detail="Usługa nie istnieje")
+
+    form = await request.form()
+    try:
+        service.name = form.get("name", service.name)
+        service.duration = int(form.get("duration", service.duration))
+        price_str = form.get("price", "0").replace(",", ".")
+        service.price = int(float(price_str) * 100) if price_str else service.price
+    except (ValueError, TypeError):
+        pass
+
+    db.commit()
+    return RedirectResponse(url="/dashboard/uslugi", status_code=302)
+
+
+@router.post("/dashboard/uslugi/{service_id}/usun")
+def services_delete(service_id: int, request: Request, db: Session = Depends(get_db)):
+    """Dezaktywuje usługę (soft delete)."""
+    provider = _get_provider(request)
+    service = (
+        db.query(Service)
+        .filter(Service.id == service_id, Service.provider_id == provider.id)
+        .first()
+    )
+    if not service:
+        raise HTTPException(status_code=404, detail="Usługa nie istnieje")
+
+    service.is_active = False
+    db.commit()
+    return RedirectResponse(url="/dashboard/uslugi", status_code=302)
