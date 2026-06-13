@@ -146,6 +146,22 @@ def health_check():
     """Endpoint dla Docker healthcheck."""
     return {"status": "ok"}
 
+
+@app.get("/favicon.ico")
+async def favicon():
+    """Minimalny favicon — kalendarz."""
+    svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect x="6" y="12" width="52" height="46" rx="6" fill="#0d6efd"/>
+  <rect x="6" y="20" width="52" height="10" fill="#0a58ca"/>
+  <rect x="12" y="14" width="6" height="5" rx="2" fill="#fff"/>
+  <rect x="28" y="14" width="6" height="5" rx="2" fill="#fff"/>
+  <rect x="44" y="14" width="6" height="5" rx="2" fill="#fff"/>
+  <text x="32" y="48" text-anchor="middle" font-size="22" font-weight="bold" fill="#fff" font-family="sans-serif">17</text>
+</svg>"""
+    from starlette.responses import Response
+    return Response(content=svg.strip(), media_type="image/svg+xml")
+
+
 # === Statyczne pliki ===
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
