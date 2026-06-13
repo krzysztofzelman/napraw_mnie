@@ -40,7 +40,6 @@
                         <th>Nazwa</th>
                         <th>Slug</th>
                         <th>Subskrypcja</th>
-                        <th>Trial do</th>
                         <th>Rezerwacje</th>
                         <th>Status</th>
                         <th>Admin</th>
@@ -67,8 +66,8 @@
                             {% else %}
                                 <span class="badge bg-light text-muted">{{ u.subscription }}</span>
                             {% endif %}
+                            <span class="small text-muted ms-1">{{ u.trial_end }}</span>
                         </td>
-                        <td class="small">{{ u.trial_end }}</td>
                         <td>{{ u.total_bookings }} ({{ u.upcoming_bookings }})</td>
                         <td>
                             {% if u.is_active %}
@@ -95,6 +94,12 @@
                                         {% else %}
                                             <i class="bi bi-play-circle"></i>
                                         {% endif %}
+                                    </button>
+                                </form>
+                                <form method="post" action="/admin/users/{{ u.id }}/activate-subscription" style="display:inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary"
+                                            onclick="return confirm('Przedłużyć subskrypcję użytkownika {{ u.email }} o 30 dni?')">
+                                        <i class="bi bi-calendar-plus"></i> +30d
                                     </button>
                                 </form>
                             {% endif %}

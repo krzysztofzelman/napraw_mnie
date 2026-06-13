@@ -95,3 +95,26 @@ def toggle_user_active(user_id: int, request: Request, db: Session = Depends(get
     logger.info(f"Admin zmienił status użytkownika {user.email}: is_active={user.is_active}")
 
     return RedirectResponse(url="/admin", status_code=302)
+
+
+@router.post("/admin/users/{user_id}/activate-subscription")
+def activate_subscription(user_id: int, request: Request, db: Session = Depends(get_db)):
+    """Ręczne przedłużenie subskrypcji użytkownika o 30 dni (dla sprzedaży poza aplikacją)."""
+    admin = _get_admin(request)
+
+    user = db.query(Provider).filter(Provider.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Użytkownik nie istnieje")
+
+    today = datetime.date.today()
+    current_end = user.trial_end if user.trial_end else today
+    user.trial_end = max(today, current_end) + datetime.timedelta(days=30)
+    user.subscription_status = "active"
+    db.commit()
+
+    logger.info(
+        f"Admin przedłużył subskrypcję {user.email}: "
+        f"subscription_status=active, trial_end={user.trial_end}"
+    )
+
+    return RedirectResponse(url="/admin", status_code=302)
