@@ -11,9 +11,14 @@ if DATABASE_URL.startswith("sqlite"):
     if db_dir:
         os.makedirs(db_dir, exist_ok=True)
 
+connect_args = {}
+if "sqlite" in DATABASE_URL:
+    connect_args["check_same_thread"] = False
+# PostgreSQL doesn't need special connect_args
+
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
+    connect_args=connect_args,
     echo=False,
 )
 

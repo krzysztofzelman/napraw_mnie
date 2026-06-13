@@ -1,16 +1,33 @@
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: rezerwuj-db
+    environment:
+      POSTGRES_DB: rezerwuj
+      POSTGRES_USER: rezerwuj
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-rezerwuj_secret_2024}
+    volumes:
+      - rezerwuj-pgdata:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rezerwuj -d rezerwuj"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   app:
     build: .
     container_name: rezerwuj-app
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "127.0.0.1:8002:8000"
-    volumes:
-      - rezerwuj-data:/app/data
     env_file:
       - .env.production
     environment:
-      - DATABASE_URL=sqlite:///./data/rezerwuj.db
+      - DATABASE_URL=postgresql://rezerwuj:${DB_PASSWORD:-rezerwuj_secret_2024}@db:5432/rezerwuj
     restart: always
 
 volumes:
-  rezerwuj-data:
+  rezerwuj-pgdata:
