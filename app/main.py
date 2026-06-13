@@ -190,7 +190,13 @@ async def cookie_auth_middleware(request: Request, call_next):
 
     # Dla POST — zweryfikuj CSRF przed przetworzeniem
     if request.method in ("POST", "PUT", "DELETE", "PATCH") and needs_csrf and not path.startswith("/stripe/"):
-        verify_csrf(request)
+        try:
+            verify_csrf(request)
+        except HTTPException as exc:
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={"error": exc.detail},
+            )
 
     if path.startswith("/dashboard") or path.startswith("/api/dashboard") or path.startswith("/admin"):
         token = None
@@ -269,6 +275,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 
 
 # === Obsługa błędów ===
+
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc):
     """Strona 404."""
@@ -277,6 +284,15 @@ async def not_found_handler(request: Request, exc):
         "public/not_found.html",
         {"request": request},
         status_code=404,
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc):
+    """Zwraca JSON z kodem błędu zamiast 500 dla HTTPException."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.detail},
     )
 
 
