@@ -191,6 +191,15 @@ async def cookie_auth_middleware(request: Request, call_next):
     # Dla POST — zweryfikuj CSRF przed przetworzeniem
     if request.method in ("POST", "PUT", "DELETE", "PATCH") and needs_csrf and not path.startswith("/stripe/"):
         try:
+            # Browser JS wstawia _csrf_token jako pole formularza (nie nagłówek)
+            if not request.headers.get("X-CSRF-Token"):
+                form = await request.form()
+                form_token = form.get("_csrf_token", "")
+                if form_token:
+                    # Wstrzyknij do scope i zresetuj cache headers
+                    request.scope["headers"].append(("x-csrf-token".encode(), form_token.encode()))
+                    if hasattr(request, "_headers"):
+                        del request._headers
             verify_csrf(request)
         except HTTPException as exc:
             return JSONResponse(
