@@ -130,12 +130,13 @@ def _seed_admin():
             db.add(admin)
             db.commit()
             logger.info(f"✅ Konto admina utworzone: {ADMIN_EMAIL}")
-        elif not admin.is_admin:
-            admin.is_admin = True
-            db.commit()
-            logger.info(f"✅ Uprawnienia admina nadane: {ADMIN_EMAIL}")
         else:
-            logger.info(f"✅ Konto admina istnieje: {ADMIN_EMAIL}")
+            # Aktualizuj hasło z .env przy każdym restarcie (na wypadek zmiany)
+            admin.password_hash = hash_password(ADMIN_PASSWORD)
+            if not admin.is_admin:
+                admin.is_admin = True
+            db.commit()
+            logger.info(f"✅ Konto admina istnieje, hasło zsynchronizowane: {ADMIN_EMAIL}")
     except Exception as e:
         logger.error(f"❌ Błąd podczas tworzenia konta admina: {e}")
     finally:
