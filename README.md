@@ -393,8 +393,13 @@ servicehub/
 │   ├── 001_initial.sql
 │   └── 002_servicehub_columns.sql   # Migracja dodająca pola sprzętu RTV/AGD i OrderStatus
 └── scripts/
-    ├── deploy.sh           # Deploy na VPS
-    └── vps-init.sh         # Inicjalizacja VPS
+    ├── deploy.sh               # Deploy na VPS
+    ├── vps-init.sh             # Inicjalizacja VPS
+    ├── monitor_servicehub.sh   # Healthcheck co 5 min (cron)
+    ├── migrate.py              # Migracja SQLite → PostgreSQL
+    ├── migrate_vps.py          # Migracja ServiceHub na SQLite w Dockerze
+    ├── migrate_vps_pg.py       # Migracja ServiceHub na PostgreSQL w Dockerze
+    └── test_login.sh           # Test logowania i dashboardu
 ```
 
 ## Modele danych
