@@ -1,0 +1,47 @@
+name: Setup SSL on VPS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-ssl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSL + nginx
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.VPS_PORT }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            DOMAIN="napraw.kzelman.pl"
+            echo "=== 1. Tworzenie katalogu certbot ==="
+            mkdir -p /var/www/certbot
+
+            echo "=== 2. Pobranie certyfikatu SSL ==="
+            certbot certonly --webroot -w /var/www/certbot \
+              --email krzysztof@zelman.pl --agree-tos --no-eff-email \
+              -d "$DOMAIN" 2>&1 || echo "CERTBOT_ATTEMPT_COMPLETE"
+
+            echo "=== 3. Test nginx ==="
+            nginx -t
+
+            echo "=== 4. Przeladowanie nginx ==="
+            nginx -s reload
+
+            echo "=== 5. Aktualizacja SITE_URL ==="
+            cd /root/napraw_mnie
+            if grep -q "SITE_URL" .env.production; then
+              sed -i "s|SITE_URL=.*|SITE_URL=https://$DOMAIN|" .env.production
+            else
+              echo "SITE_URL=https://$DOMAIN" >> .env.production
+            fi
+
+            echo "=== 6. Restart aplikacji ==="
+            docker compose down --timeout 10 2>/dev/null || true
+            docker compose up -d
+
+            echo "=== Gotowe! ==="
+            curl -sf https://$DOMAIN/health && echo " - app OK" || echo " - app NOT OK (SSL moze nie dzialac)"
