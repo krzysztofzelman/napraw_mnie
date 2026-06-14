@@ -24,4 +24,4 @@ if ! check_and_log "Internal /health" "http://localhost:8002/health"; then
 fi
 
 # Public healthcheck (via nginx)
-check_and_log "Public  /health" "https://rezerwuj.kzelman.pl/health"
+check_and_log "Public  /health" "https://napraw.kzelman.pl/health"

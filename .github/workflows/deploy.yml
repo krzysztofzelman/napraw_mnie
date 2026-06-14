@@ -33,7 +33,7 @@ jobs:
             if [ ! -f .env.production ]; then
               echo "DATABASE_URL=sqlite:///./data/napraw_mnie.db" > .env.production
               echo "SECRET_KEY=change-this-to-a-long-random-secret-key-for-production" >> .env.production
-              echo "SITE_URL=https://rezerwuj.kzelman.pl" >> .env.production
+              echo "SITE_URL=https://napraw.kzelman.pl" >> .env.production
               echo "STRIPE_SECRET_KEY=" >> .env.production
               echo "STRIPE_PUBLISHABLE_KEY=" >> .env.production
               echo "STRIPE_WEBHOOK_SECRET=" >> .env.production

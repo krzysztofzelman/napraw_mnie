@@ -1,6 +1,6 @@
 #!/bin/bash
 # Test login and dashboard access on VPS
-DOMAIN="https://rezerwuj.kzelman.pl"
+DOMAIN="https://napraw.kzelman.pl"
 COOKIE_FILE="/tmp/test_cookies.txt"
 
 # Step 1: GET login page to get CSRF cookie

@@ -3,7 +3,7 @@
 # Uruchom: bash scripts/deploy.sh
 set -e
 
-DOMAIN="rezerwuj.kzelman.pl"
+DOMAIN="napraw.kzelman.pl"
 REPO_DIR="/root/napraw_mnie"
 EMAIL="krzysztof@zelman.pl"
 APP_PORT=8002
