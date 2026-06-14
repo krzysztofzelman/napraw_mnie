@@ -12,7 +12,7 @@ echo "=== Krok 1: Klonowanie repozytorium ==="
 if [ -d "$REPO_DIR" ]; then
     cd $REPO_DIR && git pull
 else
-    git clone git@github.com:krzysztofzelman/rezerwuj.git $REPO_DIR
+    git clone git@github.com:krzysztofzelman/servicehub.git $REPO_DIR
     cd $REPO_DIR
 fi
 
