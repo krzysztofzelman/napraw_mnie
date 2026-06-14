@@ -17,6 +17,16 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            if [ ! -d /root/napraw_mnie ]; then
+              if [ -d /root/servicehub ]; then
+                cp /root/servicehub/.env.production /root/ 2>/dev/null || true
+                rm -rf /root/servicehub
+              fi
+              git clone https://github.com/krzysztofzelman/napraw_mnie.git /root/napraw_mnie
+              if [ -f /root/.env.production ]; then
+                mv /root/.env.production /root/napraw_mnie/.env.production
+              fi
+            fi
             cd /root/napraw_mnie
             git pull origin master
             docker compose build app
