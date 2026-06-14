@@ -19,13 +19,13 @@ def _setup_test_env():
     os.environ["SMS_MOCK"] = "true"
 
     # Użyj testowej bazy (tmp, żeby nie mieszać z dev)
-    os.environ["DATABASE_URL"] = "sqlite:///./.pytest_cache/test_rezerwuj.db"
+    os.environ["DATABASE_URL"] = "sqlite:///./.pytest_cache/test_servicehub.db"
 
     # Usuń starą testową bazę jeśli istnieje
     db_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         ".pytest_cache",
-        "test_rezerwuj.db",
+        "test_servicehub.db",
     )
     if os.path.exists(db_path):
         os.remove(db_path)

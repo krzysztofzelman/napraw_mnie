@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-cd /root/rezerwuj
+cd /root/servicehub
 
 # Generuj SECRET_KEY
 SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")

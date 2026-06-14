@@ -1,7 +1,7 @@
 """Uruchom migrację ServiceHub na bazie SQLite w kontenerze Docker na VPS."""
 import sqlite3
 
-DB = "/app/data/rezerwuj.db"
+DB = "/app/data/servicehub.db"
 
 conn = sqlite3.connect(DB)
 c = conn.cursor()

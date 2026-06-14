@@ -4,7 +4,7 @@
 set -e
 
 DOMAIN="rezerwuj.kzelman.pl"
-REPO_DIR="/root/rezerwuj"
+REPO_DIR="/root/servicehub"
 EMAIL="krzysztof@zelman.pl"
 APP_PORT=8002
 

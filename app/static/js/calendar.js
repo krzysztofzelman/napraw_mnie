@@ -1,5 +1,5 @@
 /**
- * Rezerwuj — Kalendarz i system rezerwacji (frontend)
+ * ServiceHub — Kalendarz i system rezerwacji (frontend)
  *
  * Obsługuje:
  * - Inicjalizację Flatpickr z dostępnymi datami
@@ -286,5 +286,5 @@
     setTimeout(loadAllVisibleDays, 500);
     setTimeout(loadAllVisibleDays, 1500);
 
-    console.log('📅 Rezerwuj — kalendarz zainicjalizowany');
+    console.log('📅 ServiceHub — kalendarz zainicjalizowany');
 })();

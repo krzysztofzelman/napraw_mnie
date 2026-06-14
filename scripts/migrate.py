@@ -2,14 +2,14 @@
 """Migracja danych z SQLite do PostgreSQL.
 
 Uruchomienie lokalne:
-    python scripts/migrate.py sqlite:///./data/rezerwuj.db postgresql://user:pass@host:5432/rezerwuj
+    python scripts/migrate.py sqlite:///./data/servicehub.db postgresql://user:pass@host:5432/servicehub
 
 Uruchomienie na VPS (w kontenerze tymczasowym):
     docker run --rm \
-        -v rezerwuj_rezerwuj-data:/old-data \
-        --network rezerwuj_default \
-        rezerwuj-app \
-        python scripts/migrate.py sqlite:///old-data/rezerwuj.db postgresql://rezerwuj:pass@db:5432/rezerwuj
+        -v servicehub_pgdata:/old-data \
+        --network servicehub_default \
+        servicehub-app \
+        python scripts/migrate.py sqlite:///old-data/servicehub.db postgresql://servicehub:pass@db:5432/servicehub
 """
 
 import sys
@@ -56,7 +56,7 @@ def get_table_data(sqlite_engine, table_name: str) -> list[dict]:
 def migrate():
     if len(sys.argv) != 3:
         print(f"Użycie: {sys.argv[0]} <SQLITE_URL> <POSTGRES_URL>")
-        print(f"   np.: {sys.argv[0]} sqlite:///./data/rezerwuj.db postgresql://user:pass@host:5432/rezerwuj")
+        print(f"   np.: {sys.argv[0]} sqlite:///./data/servicehub.db postgresql://user:pass@host:5432/servicehub")
         sys.exit(1)
 
     sqlite_url = sys.argv[1]

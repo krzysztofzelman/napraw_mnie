@@ -1,23 +1,23 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: rezerwuj-db
+    container_name: servicehub-db
     environment:
-      POSTGRES_DB: rezerwuj
-      POSTGRES_USER: rezerwuj
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-rezerwuj_secret_2024}
+      POSTGRES_DB: servicehub
+      POSTGRES_USER: servicehub
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-servicehub_secret_2024}
     volumes:
-      - rezerwuj-pgdata:/var/lib/postgresql/data
+      - servicehub-pgdata:/var/lib/postgresql/data
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rezerwuj -d rezerwuj"]
+      test: ["CMD-SHELL", "pg_isready -U servicehub -d servicehub"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   app:
     build: .
-    container_name: rezerwuj-app
+    container_name: servicehub-app
     depends_on:
       db:
         condition: service_healthy
@@ -26,7 +26,7 @@ services:
     env_file:
       - .env.production
     environment:
-      - DATABASE_URL=postgresql://rezerwuj:${DB_PASSWORD:-rezerwuj_secret_2024}@db:5432/rezerwuj
+      - DATABASE_URL=postgresql://servicehub:${DB_PASSWORD:-servicehub_secret_2024}@db:5432/servicehub
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -36,4 +36,4 @@ services:
       start_period: 15s
 
 volumes:
-  rezerwuj-pgdata:
+  servicehub-pgdata:

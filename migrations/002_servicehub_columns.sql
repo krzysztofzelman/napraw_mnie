@@ -1,5 +1,5 @@
 -- Migration 002: ServiceHub — dodanie kolumn dla napraw RTV/AGD
--- Uruchom: sqlite3 rezerwuj.db < migrations/002_servicehub_columns.sql
+-- Uruchom: sqlite3 servicehub.db < migrations/002_servicehub_columns.sql
 -- UWAGA: Dla PostgreSQL należy użyć ALTER TABLE ... ADD COLUMN z USING dla status_order
 
 -- Nowe kolumny w tabeli bookings (Order)

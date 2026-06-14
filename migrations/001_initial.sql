@@ -1,5 +1,5 @@
--- Migration 001: Initial schema for Rezerwuj SaaS
--- Uruchom: sqlite3 rezerwuj.db < migrations/001_initial.sql
+-- Migration 001: Initial schema for ServiceHub SaaS
+-- Uruchom: sqlite3 servicehub.db < migrations/001_initial.sql
 
 CREATE TABLE IF NOT EXISTS providers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -3,9 +3,9 @@ import psycopg2
 
 conn = psycopg2.connect(
     host="db",
-    dbname="rezerwuj",
-    user="rezerwuj",
-    password="rezerwuj_secret_2024",
+    dbname="servicehub",
+    user="servicehub",
+    password="servicehub_secret_2024",
 )
 c = conn.cursor()
 
