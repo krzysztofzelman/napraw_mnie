@@ -50,6 +50,9 @@ jobs:
             fi
 
             git pull origin master
+            # Zatrzymaj stare kontenery (sprzed rebrandu) blokujące port 8002
+            docker rm -f servicehub-app 2>/dev/null || true
+            docker rm -f servicehub-db 2>/dev/null || true
             docker compose down --timeout 10 2>/dev/null || true
             docker compose build app
             docker compose up -d app
