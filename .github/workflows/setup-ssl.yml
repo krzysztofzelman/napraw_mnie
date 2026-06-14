@@ -31,13 +31,17 @@ jobs:
               --email krzysztof@zelman.pl --agree-tos --no-eff-email \
               -d "$DOMAIN" 2>&1 || echo "CERTBOT_ATTEMPT_COMPLETE"
 
-            echo "=== 3. Test nginx ==="
+            echo "=== 3. Instalacja configu nginx ==="
+            cp /root/napraw_mnie/nginx.conf /etc/nginx/sites-available/$DOMAIN
+            ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/$DOMAIN
+
+            echo "=== 4. Test nginx ==="
             nginx -t
 
-            echo "=== 4. Uruchomienie nginx ==="
+            echo "=== 5. Uruchomienie nginx ==="
             nginx
 
-            echo "=== 5. Aktualizacja SITE_URL ==="
+            echo "=== 6. Aktualizacja SITE_URL ==="
             cd /root/napraw_mnie
             if grep -q "SITE_URL" .env.production; then
               sed -i "s|SITE_URL=.*|SITE_URL=https://$DOMAIN|" .env.production
@@ -45,7 +49,7 @@ jobs:
               echo "SITE_URL=https://$DOMAIN" >> .env.production
             fi
 
-            echo "=== 6. Restart aplikacji ==="
+            echo "=== 7. Restart aplikacji ==="
             docker compose down --timeout 10 2>/dev/null || true
             docker compose up -d
 
