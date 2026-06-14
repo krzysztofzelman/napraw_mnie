@@ -22,7 +22,7 @@ jobs:
                 cp /root/servicehub/.env.production /root/ 2>/dev/null || true
                 rm -rf /root/servicehub
               fi
-              git clone https://github.com/krzysztofzelman/napraw_mnie.git /root/napraw_mnie
+              git clone git@github.com:krzysztofzelman/napraw_mnie.git /root/napraw_mnie
               if [ -f /root/.env.production ]; then
                 mv /root/.env.production /root/napraw_mnie/.env.production
               fi
