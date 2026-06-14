@@ -178,3 +178,187 @@ docker exec <app-container-name> psql -U <dbuser> -d <dbname> -f migrations/002_
 - **Container hostnames**: Inside Docker Compose, containers can reach each other by service name (e.g., `db`, not `localhost` or `127.0.0.1`).
 - **.dockerignore awareness**: Always check the project's `.dockerignore` before relying on any file being inside the container.
 - **Connection strings**: The `DATABASE_URL` environment variable in the running container tells you exactly how the app connects — match those credentials in your migration script.
+
+---
+
+## Appendix: Deploying a Renamed/Rebranded Project via CI/CD
+
+When a full project rename (codebase, Docker names, GitHub repo) happens, the VPS deploy workflow will break in multiple predictable ways. This appendix documents every failure mode and fix encountered during a real rebrand.
+
+### The scenario
+
+- Old project name: `servicehub` (Docker: `servicehub-app`, repo: `krzysztofzelman/servicehub`, VPS dir: `/root/servicehub`)
+- New project name: `napraw_mnie` (Docker: `napraw-mnie-app`, repo: `krzysztofzelman/napraw_mnie`, VPS dir: `/root/napraw_mnie`)
+- Deploy via: GitHub Actions using `appleboy/ssh-action`
+- The VPS has old containers running, old `.env.production`, old repo directory
+
+### Failure mode 1: VPS directory doesn't exist
+
+**Error:**
+```
+bash: line 1: cd: /root/napraw_mnie: No such file or directory
+```
+
+**Fix:** Make the workflow self-healing — check if the new directory exists; if not, migrate from the old one:
+
+```yaml
+script: |
+  if [ ! -d /root/napraw_mnie ]; then
+    if [ -d /root/servicehub ]; then
+      cp /root/servicehub/.env.production /root/ 2>/dev/null || true
+      rm -rf /root/servicehub
+    fi
+    git clone <SSH-URL> /root/napraw_mnie
+    if [ -f /root/.env.production ]; then
+      mv /root/.env.production /root/napraw_mnie/.env.production
+    fi
+  fi
+```
+
+**Why this works:** The old repo is removed atomically before cloning the new one. The `.env.production` (containing production secrets) is preserved via a temp copy.
+
+### Failure mode 2: HTTPS clone requires auth
+
+**Error:**
+```
+Cloning into '/root/napraw_mnie'...
+fatal: could not read Username for 'https://github.com': No such device or address
+```
+
+**Fix:** Use SSH URL (`git@github.com:user/repo.git`) instead of HTTPS. The VPS should have SSH keys registered with GitHub (they already do if the old repo was cloned via SSH).
+
+```yaml
+git clone git@github.com:krzysztofzelman/napraw_mnie.git /root/napraw_mnie
+```
+
+### Failure mode 3: Missing .env.production after migration
+
+**Error:**
+```
+env file /root/napraw_mnie/.env.production not found: stat /root/napraw_mnie/.env.production: no such file or directory
+```
+
+**Cause:** If the migration logic (step 1) ran but the old repo was already deleted by a previous failed attempt, `.env.production` is lost.
+
+**Fix:** Add a fallback that generates a minimal `.env.production` if it's missing:
+
+```yaml
+if [ ! -f .env.production ]; then
+  echo "DATABASE_URL=sqlite:///./data/napraw_mnie.db" > .env.production
+  echo "SECRET_KEY=change-this-to-a-long-random-secret-key-for-production" >> .env.production
+  echo "SITE_URL=https://yourdomain.com" >> .env.production
+  # ... remaining env vars ...
+  NEW_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+  sed -i "s/SECRET_KEY=.*/SECRET_KEY=$NEW_KEY/" .env.production
+  echo "Warning: .env.production created with defaults - update API keys!"
+fi
+```
+
+**Warning:** This generates a **development-only** config. The user must manually restore real secrets (Stripe, SMS, SMTP) after the first successful deploy.
+
+### Failure mode 4: YAML syntax error from heredoc
+
+**Error:**
+```
+Invalid workflow file: .github/workflows/deploy.yml#L35
+You have an error in your yaml syntax on line 35
+```
+
+**Cause:** GitHub Actions YAML files do not support shell heredocs (`cat << 'EOF' > file`) inside the `script:` field. The newlines and special characters break YAML parsing.
+
+**Fix:** Never use heredocs in YAML `script:` blocks. Use `echo` for each line:
+```yaml
+# BAD — YAML breakage:
+script: |
+  cat > .env.production << 'EOF'
+  KEY=value
+  EOF
+
+# GOOD — works in YAML:
+script: |
+  echo "KEY=value" > .env.production
+  echo "KEY2=value2" >> .env.production
+```
+
+### Failure mode 5: Port already allocated (old containers persist)
+
+**Error:**
+```
+Bind for 127.0.0.1:8002 failed: port is already allocated
+```
+
+**Cause:** The old project's containers (e.g., `servicehub-app`) are still running on the same port. `docker compose down` only affects containers defined in the current compose file — it does NOT stop containers from a different project name.
+
+**Fix:** Kill anything using the port before starting:
+```yaml
+# Kill any Docker container publishing port 8002
+docker ps -q --filter publish=8002 | xargs -r docker rm -f 2>/dev/null || true
+# Kill any non-Docker process on port 8002
+fuser -k 8002/tcp 2>/dev/null || true
+# Then the normal compose down
+docker compose down --timeout 10 2>/dev/null || true
+```
+
+**Why `fuser -k`:** It targets the specific port regardless of process type (Docker, nginx, manual Python process). It's idempotent — if nothing is using the port, it silently exits.
+
+### The final robust deploy workflow template
+
+Combining all fixes into a single GitHub Actions workflow:
+
+```yaml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.VPS_PORT }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            # 1. Clone/migrate repo (handles project rename)
+            if [ ! -d /root/NEW_PROJECT ]; then
+              if [ -d /root/OLD_PROJECT ]; then
+                cp /root/OLD_PROJECT/.env.production /root/ 2>/dev/null || true
+                rm -rf /root/OLD_PROJECT
+              fi
+              git clone git@github.com:USER/NEW_PROJECT.git /root/NEW_PROJECT
+              if [ -f /root/.env.production ]; then
+                mv /root/.env.production /root/NEW_PROJECT/.env.production
+              fi
+            fi
+
+            cd /root/NEW_PROJECT
+
+            # 2. Generate .env.production if missing (first deploy or failed migration)
+            if [ ! -f .env.production ]; then
+              cat /dev/null > .env.production
+              echo "DATABASE_URL=sqlite:///./data/NEW_PROJECT.db" >> .env.production
+              echo "SECRET_KEY=change-this-to-a-long-random-secret-key-for-production" >> .env.production
+              # ... add all required vars via echo ...
+              NEW_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+              sed -i "s/SECRET_KEY=.*/SECRET_KEY=$NEW_KEY/" .env.production
+              echo "Warning: .env.production created with defaults - update secrets!"
+            fi
+
+            git pull origin master
+
+            # 3. Free the port (handles old project containers + stray processes)
+            docker ps -q --filter publish=8002 | xargs -r docker rm -f 2>/dev/null || true
+            fuser -k 8002/tcp 2>/dev/null || true
+            docker compose down --timeout 10 2>/dev/null || true
+
+            # 4. Build and deploy
+            docker compose build app
+            docker compose up -d app
+```
+
+### When this appendix applies
+
+Use this approach whenever:
+- A project has been rebranded/renamed (code + Docker + GitHub repo)
+- The old project was already deployed to a VPS
+- The CI/CD deploy workflow (GitHub Actions or similar) needs to survive the migration
+- You cannot manually SSH into the VPS to set things up

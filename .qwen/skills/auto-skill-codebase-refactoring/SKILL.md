@@ -125,6 +125,34 @@ grep -r "rezerwuj\.kzelman" app/
 
 Each hit should be a false positive (variable name, template context variable, element ID) — not an actual class reference.
 
+### 8b. Post-refactoring domain terminology audit (UI text & test data)
+
+After the main refactoring, the user may report that old business-domain terms still appear in the UI even though all class/function names are correct. This happens because **placeholders, hints, examples, sample data, and test fixtures** are often missed by class-rename passes.
+
+Run a broad pattern search for the **old domain's specific terminology** — these are typically Polish business words not caught by English-focused renames:
+
+```bash
+# Example for RTV/AGD repair replacing a beauty/hairdressing system:
+grep -r "salon\|urody\|fryzjer\|strzyżenie\|kosmetyczn\|makijaż\|paznokcie\|stylizac\|brwi\|rzęsy\|masaż" app/ templates/ tests/
+
+# Broader: also check for old sample slugs, placeholder names, example emails
+grep -r "janek\|kowalski\|example@example" app/templates/ tests/
+```
+
+Common places these remnants hide:
+- **`placeholder="..."`** attributes in `<input>` elements (e.g., `placeholder="Salon Urody Jan"`)
+- **Test fixtures** — sample slugs like `fryzjer-janek`, example emails, dummy client names
+- **Registration page** — slug hints like `sklep-janek`, `fryzjer-janek`
+- **Hardcoded example data** in landing page HTML or marketing copy
+- **README** — example URLs, usage scenarios
+
+Fix pipeline:
+1. Search broadly with domain-specific terms
+2. Replace each remnant with a term appropriate for the new domain (e.g., `fryzjer-janek` → `serwis-jan`, `Salon Urody Jan` → `Serwis RTV Jan`)
+3. Stage (`git add -A`), commit, push, and redeploy to VPS (`docker compose build app && docker compose up -d app`)
+
+**Why this matters**: Users notice these remnants immediately after deployment because they visit the live UI — not just the code. Skipping this step means the user sees old-domain branding on the live site despite a correct refactoring.
+
 ### 9. Update or create migration file
 
 Always create a SQL migration for:

@@ -6,7 +6,20 @@
       "Bash(git commit *)",
       "Bash(git push)",
       "Bash(curl *)",
-      "Bash(ssh *)"
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(move *)",
+      "Bash(git rm *)",
+      "Bash(gh *)",
+      "Bash(git remote *)",
+      "Bash(del *)",
+      "Bash(rename *)",
+      "Bash(nslookup *)",
+      "Bash(do *)",
+      "Bash(goto *)",
+      "Bash(:found)",
+      "Bash(dir *)",
+      "Bash(type *)"
     ]
   },
   "$version": 4

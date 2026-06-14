@@ -1,5 +1,13 @@
 # Napraw Mnie — System Zarządzania Zleceniami Serwisowymi RTV/AGD
 
+> **Linki:**
+> - **Produkcja:** [https://napraw.kzelman.pl](https://napraw.kzelman.pl)
+> - **Healthcheck:** [https://napraw.kzelman.pl/health](https://napraw.kzelman.pl/health)
+> - **GitHub:** [github.com/krzysztofzelman/napraw_mnie](https://github.com/krzysztofzelman/napraw_mnie)
+
+**naprawmnie** — system zleceń dla serwisów urządzeń (RTV, AGD, klimatyzacja, urządzenia biznesowe).
+Dla serwisantów, hydraulików, elektryków, mechaników — każdego kto naprawia.
+
 SaaS do zarządzania przyjęciem i naprawą sprzętu RTV/AGD dla warsztatów serwisowych.
 
 ## Funkcje
@@ -135,7 +143,7 @@ ADMIN_PASSWORD=Admin123!
 | `STRIPE_PUBLISHABLE_KEY` | Klucz Publiczny Stripe | `pk_test_...` |
 | `STRIPE_WEBHOOK_SECRET` | Sekret webhooka Stripe | `whsec_...` |
 | `SUBSCRIPTION_PRICE_ID` | ID produktu Stripe | `price_...` |
-| `SUBSCRIPTION_PRICE_PLN` | Cena subskrypcji w groszach | `4900` |
+| `SUBSCRIPTION_PRICE_PLN` | Cena subskrypcji w groszach (Starter) | `9900` |
 | `SMS_API_KEY` | Klucz API SMS | — |
 | `SMS_SENDER` | Nazwa nadawcy SMS | `NaprawMnie` |
 | `SMS_MOCK` | Tryb mock SMS (true=log, false=API) | `true` |
