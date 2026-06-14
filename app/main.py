@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, selectinload
 
-from app.config import SITE_URL, STRIPE_WEBHOOK_SECRET, SECRET_KEY, ADMIN_PASSWORD
+from app.config import SITE_URL, STRIPE_WEBHOOK_SECRET, SECRET_KEY, ADMIN_PASSWORD, SUBSCRIPTION_PRICE_PLN
 from app.database import engine, Base, get_db, SessionLocal
 from app.models import ServiceProvider, WorkingHour, Service, Order, BlockedSlot
 from app.auth import decode_access_token
@@ -382,7 +382,10 @@ async def general_error_handler(request: Request, exc):
 def landing_page(request: Request):
     """Strona główna — landing page z informacją o produkcie."""
     templates = Jinja2Templates(directory="app/templates")
-    return templates.TemplateResponse("public/landing.html", {"request": request})
+    return templates.TemplateResponse("public/landing.html", {
+        "request": request,
+        "subscription_price": SUBSCRIPTION_PRICE_PLN // 100,
+    })
 
 
 if __name__ == "__main__":
