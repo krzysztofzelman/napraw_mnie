@@ -225,7 +225,7 @@ async def security_headers_middleware(request: Request, call_next):
         "img-src 'self' data: https:; "
         "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; "
         "frame-src https://www.google.com; "
-        "connect-src 'self'; "
+        "connect-src 'self' https://cdn.jsdelivr.net;"
         "form-action 'self'"
     )
     return response

@@ -1,8 +1,8 @@
 ---
 name: bootstrap5-theme-rebrand
-description: Rebrand a Bootstrap 5 application's color scheme (primary, text, background, button states) using CSS custom property overrides — without modifying Bootstrap source files
+description: Rebrand a Bootstrap 5 application's full color system using CSS custom property overrides — primary, semantic accents (success/info/warning/danger), Flatpickr, icons, and metadata — without touching Bootstrap source
 source: auto-skill
-extracted_at: '2026-06-14T11:29:58.465Z'
+extracted_at: '2026-06-14T11:33:16.652Z'
 ---
 
 # Bootstrap 5 Theme Rebrand via CSS Custom Properties
@@ -72,11 +72,74 @@ Bootstrap 5's `btn-outline-*` variants also use CSS custom properties, but they 
 
 Without these, `.btn-outline-primary` will still use Bootstrap's default blue.
 
-## Handling third-party date pickers (Flatpickr example)
+## Override all semantic colors, not just primary
 
-Flatpickr's theme colors (today highlight, selected date) are set via direct color values in CSS, not custom properties. You must override them explicitly:
+A visually cohesive palette also requires overriding Bootstrap's **semantic accent colors** (`success`, `info`, `warning`, `danger`). Don't leave green `bg-success` badges clashing with your orange brand.
 
 ```css
+:root {
+    /* Brand palette */
+    --bs-primary: #FF6B35;
+    --bs-primary-rgb: 255, 107, 53;
+    --bs-body-color: #2C3E50;
+    --bs-body-bg: #ECF0F1;
+
+    /* Semantic accents — tuned to match the warm orange brand */
+    --bs-success: #E67E22;        /* warm orange-brown — replaces harsh green */
+    --bs-success-rgb: 230, 126, 34;
+    --bs-info: #3498DB;           /* blue — acceptable accent */
+    --bs-info-rgb: 52, 152, 219;
+    --bs-warning: #F1C40F;        /* yellow */
+    --bs-warning-rgb: 241, 196, 15;
+    --bs-danger: #E74C3C;         /* red */
+    --bs-danger-rgb: 231, 76, 60;
+}
+```
+
+This propagates to all `.bg-success`, `.text-success`, `.alert-success`, `.btn-success`, `.badge bg-success` across the entire app — no template edits needed.
+
+### Color choice strategy
+
+| Semantic | Recommended approach |
+|----------|---------------------|
+| `success` | Use a **warmer, darker shade** of the primary (e.g., `#E67E22` when primary is `#FF6B35`). This creates visual hierarchy without introducing a cold color. |
+| `info` | Keep a neutral blue (`#3498DB`) — it's used sparingly and provides helpful contrast. |
+| `warning` | Standard yellow/amber — doesn't clash with warm palettes. |
+| `danger` | Standard red — doesn't clash. |
+
+### When the user complains about the green
+
+If the user says "oślepia ten kolor" (this color blinds me) referring to green Bootstrap elements, they mean `--bs-success` (`#198754`, the default Bootstrap green). Override it:
+
+```css
+:root {
+    --bs-success: #E67E22;   /* warm orange, matches brand */
+    --bs-success-rgb: 230, 126, 34;
+}
+```
+
+## Handling third-party date pickers (Flatpickr example)
+
+Flatpickr's theme colors (today highlight, selected date) are set via direct color values in CSS, not custom properties. You must override them explicitly.
+
+### Available / selected states
+
+The `.flatpickr-day.available` class uses hardcoded green tones that match Bootstrap's old `--bs-success`. Update them to warm tones matching the new palette:
+
+```css
+/* Flatpickr — available dates (before: green tones) */
+.flatpickr-day.available {
+    background: #fde8d8 !important;    /* light peach */
+    border-color: #f5cba7 !important;  /* medium peach */
+    color: #A04000 !important;         /* dark burnt orange text */
+    font-weight: 600;
+    cursor: pointer !important;
+}
+
+.flatpickr-day.available:hover {
+    background: #f8d5b8 !important;    /* slightly darker peach */
+}
+
 /* Flatpickr — today circle */
 .flatpickr-day.today {
     border-color: #FF6B35 !important;
@@ -98,6 +161,14 @@ Flatpickr's theme colors (today highlight, selected date) are set via direct col
 ```
 
 Use `!important` sparingly — only for third-party components that set inline styles or have higher-specificity rules.
+
+### Why Flatpickr available-dates matter
+
+The `.flatpickr-day.available` selector controls how **selectable dates** appear in the calendar. If your custom CSS only overrides selected/today but leaves this as green `#d1e7dd`, it will clash with a warm brand palette. Always search for all Flatpickr color classes:
+
+```bash
+grep -r 'flatpickr' app/static/css/
+```
 
 ## Updating the inline SVG favicon
 

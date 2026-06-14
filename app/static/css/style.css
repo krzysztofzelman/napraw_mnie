@@ -5,8 +5,8 @@
 :root {
     --bs-primary: #FF6B35;
     --bs-primary-rgb: 255, 107, 53;
-    --bs-success: #E67E22;
-    --bs-success-rgb: 230, 126, 34;
+    --bs-success: #00897B;
+    --bs-success-rgb: 0, 137, 123;
     --bs-info: #3498DB;
     --bs-info-rgb: 52, 152, 219;
     --bs-warning: #F1C40F;
@@ -45,15 +45,15 @@ body {
 }
 
 .flatpickr-day.available {
-    background: #fde8d8 !important;
-    border-color: #f5cba7 !important;
-    color: #A04000 !important;
+    background: #d1f2eb !important;
+    border-color: #a3e4d7 !important;
+    color: #0b5345 !important;
     font-weight: 600;
     cursor: pointer !important;
 }
 
 .flatpickr-day.available:hover {
-    background: #f8d5b8 !important;
+    background: #a3e4d7 !important;
 }
 
 .flatpickr-day.today {
