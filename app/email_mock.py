@@ -118,6 +118,39 @@ def send_booking_reminder_email(
     return send_email(to, subject, html)
 
 
+def send_new_booking_notification_to_provider(
+    to: str,
+    provider_name: str,
+    client_name: str,
+    client_surname: str,
+    client_phone: str,
+    date: str,
+    time: str,
+    service_name: str = "",
+    company_name: str = "",
+) -> bool:
+    """Wysyła powiadomienie do usługodawcy o nowej rezerwacji."""
+    biz_name = company_name or provider_name
+    subject = f"🔔 Nowa rezerwacja! {date} {time} – {client_name} {client_surname}"
+    svc_line = f"<tr><td style=\"padding:6px 12px;font-weight:bold;border:1px solid #dee2e6;\">Usługa</td><td style=\"padding:6px 12px;border:1px solid #dee2e6;\">{service_name}</td></tr>\n" if service_name else ""
+    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+<h2 style="color:#198754;">🆕 Nowa rezerwacja</h2>
+<p>Dzień dobry, <strong>{biz_name}</strong>!</p>
+<p>Masz nową rezerwację od klienta:</p>
+<table style="border-collapse:collapse;margin:16px 0;">
+<tr><td style="padding:6px 12px;font-weight:bold;border:1px solid #dee2e6;">Imię</td><td style="padding:6px 12px;border:1px solid #dee2e6;">{client_name}</td></tr>
+<tr><td style="padding:6px 12px;font-weight:bold;border:1px solid #dee2e6;">Nazwisko</td><td style="padding:6px 12px;border:1px solid #dee2e6;">{client_surname}</td></tr>
+<tr><td style="padding:6px 12px;font-weight:bold;border:1px solid #dee2e6;">Telefon</td><td style="padding:6px 12px;border:1px solid #dee2e6;">{client_phone}</td></tr>
+{svc_line}<tr><td style="padding:6px 12px;font-weight:bold;border:1px solid #dee2e6;">Data</td><td style="padding:6px 12px;border:1px solid #dee2e6;">{date}</td></tr>
+<tr><td style="padding:6px 12px;font-weight:bold;border:1px solid #dee2e6;">Godzina</td><td style="padding:6px 12px;border:1px solid #dee2e6;">{time}</td></tr>
+</table>
+<p style="margin:24px 0;text-align:center;">
+<a href="{SITE_URL}/dashboard/rezerwacje" style="display:inline-block;background:#198754;color:#fff;text-decoration:none;padding:12px 32px;border-radius:6px;font-weight:bold;">Zobacz w panelu</a>
+</p>
+<p style="color:#6c757d;font-size:14px;">— Rezerwuj</p></body></html>"""
+    return send_email(to, subject, html)
+
+
 def send_password_reset_email(to: str, reset_url: str) -> bool:
     """Wysyła link do resetu hasła."""
     subject = "Resetowanie hasła — Rezerwuj"

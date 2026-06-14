@@ -19,6 +19,7 @@
                     <th>Czas</th>
                     <th>Status</th>
                     <th>Płatność</th>
+                    <th>Notatka</th>
                     <th>Akcje</th>
                 </tr>
             </thead>
@@ -51,7 +52,32 @@
                                 <span class="text-muted small">—</span>
                             {% endif %}
                         </td>
+                        <td style="max-width:200px;">
+                            <div class="note-view-{{ b.id }}">
+                                {% if b.notes %}
+                                    <small class="text-muted">{{ b.notes[:80] }}{% if b.notes|length > 80 %}…{% endif %}</small>
+                                {% else %}
+                                    <small class="text-muted fst-italic">—</small>
+                                {% endif %}
+                                <button class="btn btn-sm btn-link p-0 ms-1" onclick="toggleNote({{ b.id }})" title="Edytuj notatkę">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            </div>
+                            <div class="note-edit-{{ b.id }}" style="display:none;">
+                                <form method="POST" action="/dashboard/rezerwacje/{{ b.id }}/notatka" onsubmit="return saveNote({{ b.id }})">
+                                    <div class="input-group input-group-sm">
+                                        <textarea name="notes" rows="2" class="form-control form-control-sm" style="font-size:0.8rem;">{{ b.notes }}</textarea>
+                                        <button class="btn btn-sm btn-outline-success" type="submit"><i class="bi bi-check"></i></button>
+                                        <button class="btn btn-sm btn-outline-secondary" type="button" onclick="toggleNote({{ b.id }})"><i class="bi bi-x"></i></button>
+                                    </div>
+                                </form>
+                            </div>
+                        </td>
                         <td>
+                            <a href="/dashboard/rezerwacje/{{ b.id }}/ics"
+                               class="btn btn-sm btn-outline-primary" title="Dodaj do kalendarza (ICS)">
+                                <i class="bi bi-calendar-plus"></i>
+                            </a>
                             {% if b.status == 'confirmed' %}
                                 <form method="POST" action="/dashboard/rezerwacje/{{ b.id }}/zakoncz" class="d-inline">
                                     <button class="btn btn-sm btn-outline-success" title="Oznacz jako zakończoną">
@@ -71,6 +97,20 @@
             </tbody>
         </table>
     </div>
+
+    <script>
+    function toggleNote(id) {
+        document.querySelector('.note-view-' + id).style.display =
+            document.querySelector('.note-view-' + id).style.display === 'none' ? '' : 'none';
+        document.querySelector('.note-edit-' + id).style.display =
+            document.querySelector('.note-edit-' + id).style.display === 'none' ? '' : 'none';
+    }
+    function saveNote(id) {
+        // formularz sam się submituje przez POST — tylko ukrywamy widok
+        document.querySelector('.note-view-' + id).style.display = 'none';
+        return true;
+    }
+    </script>
 {% else %}
     <div class="text-center py-5 text-muted">
         <i class="bi bi-calendar-plus display-4"></i>

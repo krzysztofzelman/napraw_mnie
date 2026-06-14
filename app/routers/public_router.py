@@ -12,8 +12,14 @@ from app.deps import rate_limit_default, rate_limit_booking
 from app.models import Provider, Booking, Service
 from app.schemas import BookRequest
 from app.utils import get_available_slots
-from app.sms_mock import send_booking_confirmation
-from app.email_mock import send_booking_confirmation_email
+from app.sms_mock import (
+    send_booking_confirmation,
+    send_new_booking_notification_to_provider_sms,
+)
+from app.email_mock import (
+    send_booking_confirmation_email,
+    send_new_booking_notification_to_provider,
+)
 from app.payments import create_deposit_checkout
 from app.config import SITE_URL, RECAPTCHA_SITE_KEY, RECAPTCHA_SECRET_KEY
 
@@ -261,6 +267,30 @@ async def create_booking(
             date_str,
             time_str,
             provider.company_name,
+        )
+
+    # Powiadom usługodawcę o nowej rezerwacji — zawsze na jego adres e-mail
+    send_new_booking_notification_to_provider(
+        provider.email,
+        provider.name,
+        booking.client_name,
+        booking.client_surname,
+        booking.client_phone,
+        date_str,
+        time_str,
+        company_name=provider.company_name,
+    )
+
+    # SMS do usługodawcy o nowej rezerwacji (jeśli podał numer telefonu)
+    if provider.phone:
+        send_new_booking_notification_to_provider_sms(
+            provider.phone,
+            provider.name,
+            booking.client_name,
+            booking.client_surname,
+            date_str,
+            time_str,
+            company_name=provider.company_name,
         )
 
     # Jeśli wymagana zaliczka — utwórz Stripe Checkout

@@ -19,6 +19,7 @@ from app.payments import (
     is_stripe_configured,
     SUBSCRIPTION_PRICE_PLN,
 )
+from app.ics_export import generate_booking_ics
 from app.config import SITE_URL, TRIAL_DAYS
 
 logger = logging.getLogger("rezerwuj.dashboard")
@@ -173,6 +174,28 @@ def complete_booking(booking_id: int, request: Request, db: Session = Depends(ge
     return RedirectResponse(url="/dashboard/rezerwacje", status_code=302)
 
 
+@router.post("/dashboard/rezerwacje/{booking_id}/notatka")
+async def update_booking_note(booking_id: int, request: Request, db: Session = Depends(get_db)):
+    """Zapisuje notatkę o kliencie w rezerwacji (CRM)."""
+    provider = _get_provider(request)
+    booking = (
+        db.query(Booking)
+        .filter(
+            Booking.id == booking_id,
+            Booking.provider_id == provider.id,
+        )
+        .first()
+    )
+    if not booking:
+        raise HTTPException(status_code=404, detail="Rezerwacja nie istnieje")
+
+    form = await request.form()
+    booking.notes = form.get("notes", "")
+    db.commit()
+
+    return RedirectResponse(url="/dashboard/rezerwacje", status_code=302)
+
+
 @router.get("/dashboard/rezerwacje/eksport")
 def bookings_export_csv(request: Request, db: Session = Depends(get_db)):
     """Eksport wszystkich rezerwacji do CSV."""
@@ -218,6 +241,43 @@ def bookings_export_csv(request: Request, db: Session = Depends(get_db)):
     return Response(
         content=csv_content.encode("utf-8-sig"),  # BOM dla polskich znaków w Excelu
         media_type="text/csv; charset=utf-8-sig",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/dashboard/rezerwacje/{booking_id}/ics")
+def booking_export_ics(
+    booking_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Eksport pojedynczej rezerwacji do ICS (Google Calendar, Apple Calendar)."""
+    provider = _get_provider(request)
+
+    booking = (
+        db.query(Booking)
+        .filter(Booking.id == booking_id, Booking.provider_id == provider.id)
+        .first()
+    )
+    if not booking:
+        raise HTTPException(status_code=404, detail="Rezerwacja nie znaleziona")
+
+    ics_content = generate_booking_ics(
+        client_name=booking.client_name,
+        client_surname=booking.client_surname,
+        provider_name=provider.name,
+        provider_address="",
+        booking_date=booking.booking_date,
+        booking_time=booking.booking_time,
+        duration_minutes=booking.duration,
+        company_name=provider.company_name or "",
+        booking_id=booking.id,
+    )
+
+    filename = f"wizyta_{booking.booking_date.isoformat()}_{booking.booking_time.strftime('%H%M')}.ics"
+    return Response(
+        content=ics_content.encode("utf-8"),
+        media_type="text/calendar; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
