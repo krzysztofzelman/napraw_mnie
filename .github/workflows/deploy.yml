@@ -28,6 +28,29 @@ jobs:
               fi
             fi
             cd /root/napraw_mnie
+
+            # Utwórz .env.production jeśli brak (pierwsze wdrożenie lub po migracji)
+            if [ ! -f .env.production ]; then
+              cat > .env.production << 'ENVEOF'
+DATABASE_URL=sqlite:///./data/napraw_mnie.db
+SECRET_KEY=change-this-to-a-long-random-secret-key-for-production
+SITE_URL=https://rezerwuj.kzelman.pl
+STRIPE_SECRET_KEY=
+STRIPE_PUBLISHABLE_KEY=
+STRIPE_WEBHOOK_SECRET=
+SUBSCRIPTION_PRICE_ID=
+SMS_API_KEY=
+SMS_SENDER=NaprawMnie
+SMS_MOCK=true
+TRIAL_DAYS=14
+MAX_BOOKING_DAYS_AHEAD=60
+SUBSCRIPTION_PRICE_PLN=4900
+ENVEOF
+              NEW_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))" 2>/dev/null || openssl rand -base64 32)
+              sed -i "s/SECRET_KEY=.*/SECRET_KEY=$NEW_KEY/" .env.production
+              echo "⚠️  .env.production utworzony z domyślnymi wartościami — uzupełnij SECRET_KEY i klucze API!"
+            fi
+
             git pull origin master
             docker compose build app
             docker compose up -d app
